@@ -1,4 +1,4 @@
-var nom = require('../nomiku.js');
+var nom = require('nomiku-js');
 
 function showVariable(err, varName, value)
 {

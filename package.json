@@ -1,5 +1,5 @@
 {
-  "name": "nomiku.js",
+  "name": "nomiku-js",
   "version": "1.0.0",
   "description": "A NodeJS module for interacting the a WiFi Nomiku and the Nomiku Tender service",
   "main": "nomiku.js",

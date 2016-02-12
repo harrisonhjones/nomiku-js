@@ -5,7 +5,7 @@ A NodeJS module for interacting the a WiFi Nomiku and the Nomiku Tender service
 ## Installation
 
 With npm do
- `npm install nomikujs`
+ `npm install nomiku-js`
 
 ## Documentation 
 
