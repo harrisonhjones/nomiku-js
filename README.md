@@ -1,4 +1,4 @@
-# NomikuJS
+# nomiku-js
 
 A NodeJS module for interacting the a WiFi Nomiku and the Nomiku Tender service
 
