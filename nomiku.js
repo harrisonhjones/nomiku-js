@@ -96,6 +96,16 @@ function setDeviceID(id)
 }
 
 /**
+ * @function getToken
+ * @description Returns the current apiToken
+ * @returns {String} The current apiToken / access token
+ */
+function getToken()
+{
+    return apiToken;
+}
+
+/**
  * @function auth
  * @description Authenticates and grabs an access token
  * @param {String} email - email to login to the Nomiku API with
@@ -391,5 +401,6 @@ module.exports = {
     STATE_ON: STATE_ON,
     STATE_OFF: STATE_OFF,
     setState: setState,
-    setSetPoint: setSetPoint
+    setSetPoint: setSetPoint,
+    getToken: getToken
 }

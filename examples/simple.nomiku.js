@@ -15,6 +15,8 @@ nom.auth(process.env.NOMIKU_EMAIL, process.env.NOMIKU_PASSWORD, function(error){
         return;
     }
 
+    console.log("The current access token is " + nom.getToken())
+
     nom.getDevices(function(error, devices)
     {
         if(error)
