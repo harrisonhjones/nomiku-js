@@ -29,19 +29,18 @@
  * SOFTWARE.
  */
 
-
+/**
+ * @class
+ * @description Creates a new Nomiku adapter
+ * @property {String} STATE_ON - The value to indicate that a unit is "ON"
+ * @property {String} STATE_OFF - The value to indicate that a unit is "OFF"
+ * @property {String} STATE_OFFLINE - The value to indicate that a unit is "OFFLINE"
+ */ 
 var Nomiku = (function() {
 
     var _ = require('private-parts').createKey();
 
-    /**
-     * @class
-     * @description Creates a new Nomiku adapter
-     * @property {String} STATE_ON - The value to indicate that a unit is "ON"
-     * @property {String} STATE_OFF - The value to indicate that a unit is "OFF"
-     * @property {String} STATE_OFFLINE - The value to indicate that a unit is "OFFLINE"
-     */
-
+    
     function Nomiku(token) {
         if(token)
             _(this).apiToken = token;
@@ -61,6 +60,7 @@ var Nomiku = (function() {
 
     /**
      * @function setDebug
+     * @memberof Nomiku.prototype
      * @description Manually sets if debugging is on or off
      * @param {Boolean} arg - The future state of the debugger's on state
      */
@@ -77,6 +77,7 @@ var Nomiku = (function() {
 
     /**
      * @function debug
+     * @memberof Nomiku.prototype
      * @description Manually sets if debugging is on or off
      * @param {Boolean} arg - The future state of the debugger's on state
      */
@@ -89,6 +90,7 @@ var Nomiku = (function() {
 
     /**
      * @function setToken
+     * @memberof Nomiku.prototype
      * @description Manually sets a token
      * @param {String} apiToken - the API token to use
      * @returns {Boolean} true if a token is provided. False otherwise
@@ -108,6 +110,7 @@ var Nomiku = (function() {
 
     /**
      * @function setUserID
+     * @memberof Nomiku.prototype
      * @description Manually sets a userID
      * @param {String} id - the user ID to use
      * @returns {Boolean} true if a id is provided. False otherwise
@@ -127,6 +130,7 @@ var Nomiku = (function() {
 
     /**
      * @function setDeviceID
+     * @memberof Nomiku.prototype
      * @description Manually sets the device ID
      * @param {String} id - the device ID to use
      * @returns {Boolean} true if a id is provided. False otherwise
@@ -148,6 +152,7 @@ var Nomiku = (function() {
 
     /**
      * @function getToken
+     * @memberof Nomiku.prototype
      * @description Returns the current apiToken
      * @returns {String} The current apiToken / access token
      */
@@ -160,6 +165,7 @@ var Nomiku = (function() {
 
     /**
      * @function auth
+     * @memberof Nomiku.prototype
      * @description Authenticates and grabs an access token
      * @param {String} email - email to login to the Nomiku API with
      * @param {String} password - password for the login
@@ -201,6 +207,7 @@ var Nomiku = (function() {
 
     /**
      * @function getDevices
+     * @memberof Nomiku.prototype
      * @description Authenticates and grabs an access token
      * @param {String} email - email to login to the Nomiku API with
      * @param {String} password - password for the login
@@ -241,6 +248,7 @@ var Nomiku = (function() {
 
     /**
      * @function get
+     * @memberof Nomiku.prototype
      * @description Grabs an arbitrary variable value
      * @param {String} variableName - the variable name to grab
      * @param {getSetCallback} cb - The callback that handles the response.
@@ -290,6 +298,7 @@ var Nomiku = (function() {
 
     /**
      * @function set
+     * @memberof Nomiku.prototype
      * @description Sets an arbitrary variable value
      * @param {String} variableName - the variable name to set
      * @param {String} value - the value to set the variable to
@@ -347,6 +356,7 @@ var Nomiku = (function() {
 
     /**
      * @function getState
+     * @memberof Nomiku.prototype
      * @description Grabs the most recent state (0 = off, 1 = on, -1 = offline)
      * @param {getSetCallback} cb - The callback that handles the response.
      */
@@ -357,6 +367,7 @@ var Nomiku = (function() {
 
     /**
      * @function getTemp
+     * @memberof Nomiku.prototype
      * @description Grabs the most recent temperature in Celcius
      * @param {getSetCallback} cb - The callback that handles the response.
      */
@@ -367,6 +378,7 @@ var Nomiku = (function() {
 
     /**
      * @function getSetPoint
+     * @memberof Nomiku.prototype
      * @description Grabs the most recent set point temperature in Celcius
      * @param {getSetCallback} cb - The callback that handles the response.
      */
@@ -377,6 +389,7 @@ var Nomiku = (function() {
 
     /**
      * @function getReceipeID
+     * @memberof Nomiku.prototype
      * @description Grabs the most recent recipe ID
      * @param {getSetCallback} cb - The callback that handles the response.
      */
@@ -387,6 +400,7 @@ var Nomiku = (function() {
 
     /**
      * @function getVersion
+     * @memberof Nomiku.prototype
      * @description Grabs the most recent version
      * @param {getSetCallback} cb - The callback that handles the response.
      */
@@ -397,6 +411,7 @@ var Nomiku = (function() {
 
     /**
      * @function setState
+     * @memberof Nomiku.prototype
      * @description Sets the current state of the device
      * @param {getSetCallback} cb - The callback that handles the response.
      */
@@ -407,6 +422,7 @@ var Nomiku = (function() {
 
     /**
      * @function setSetPoint
+     * @memberof Nomiku.prototype
      * @description Sets the current temperature set point in Celcius of the device
      * @param {getSetCallback} cb - The callback that handles the response.
      */
@@ -417,6 +433,7 @@ var Nomiku = (function() {
 
     /**
      * @function CtoF
+     * @memberof Nomiku.prototype
      * @description Converts temperatures in Celcius to Farenheight 
      * @param {String} c - The temp value in degrees Celcius
      * @returns {Number} The converted temperature in Farenheight
@@ -428,6 +445,7 @@ var Nomiku = (function() {
 
     /**
      * @function FtoC
+     * @memberof Nomiku.prototype
      * @description Converts temperatures in Farenheight to Celcius 
      * @param {String} f - The temp value in degrees Farenheight
      * @returns {Number} The converted temperature in Celcius
@@ -440,15 +458,18 @@ var Nomiku = (function() {
     return Nomiku;
 }());
 
+/** @module nomiku-js */
 module.exports = new Nomiku;
 
 /**
  * @callback authenticateCallback
+ * @memberof Nomiku.prototype
  * @param {Boolean|object} error - False if no error occured; an error obejct if an error did occur
  */
 
 /**
  * @callback getSetCallback
+ * @memberof Nomiku.prototype
  * @param {Boolean|object} error - False if no error occured; an error obejct if an error did occur
  * @param {String} value - the value returned from the get request if an error did not occur
  */
