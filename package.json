@@ -1,10 +1,11 @@
 {
   "name": "nomiku-js",
-  "version": "1.0.2",
+  "version": "2.0.3",
   "description": "A NodeJS module for interacting the a WiFi Nomiku and the Nomiku Tender service",
   "main": "nomiku.js",
   "dependencies": {
     "mqtt": "^1.7.0",
+    "private-parts": "^0.4.1",
     "request": "^2.69.0"
   },
   "devDependencies": {},
@@ -21,9 +22,9 @@
   ],
   "author": "Harrison Jones (harrison@hhj.me)",
   "licenses": [
-  {
-    "type": "MIT",
-    "url": "https://github.com/harrisonhjones/nomiku-js/blob/master/LICENSE"
-  }
-]
+    {
+      "type": "MIT",
+      "url": "https://github.com/harrisonhjones/nomiku-js/blob/master/LICENSE"
+    }
+  ]
 }
