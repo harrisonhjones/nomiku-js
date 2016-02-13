@@ -1,4 +1,6 @@
-var nom = require('nomiku-js');
+var nom = require('../nomiku.js');
+
+nom.setDebug(true);
 
 function showVariable(err, varName, value)
 {
@@ -32,7 +34,6 @@ nom.auth(process.env.NOMIKU_EMAIL, process.env.NOMIKU_PASSWORD, function(error){
                 if(devices[i].hardware_device_id)
                 {
                     nom.setDeviceID(devices[i].hardware_device_id);
-
                     nom.getState(function (err, value){showVariable(err, 'state', value)});
                     nom.getTemp(function (err, value){showVariable(err, 'temp', value)});
                     nom.getSetPoint(function (err, value){showVariable(err, 'setPoint', value)});
