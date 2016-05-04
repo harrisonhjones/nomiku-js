@@ -176,8 +176,8 @@ var Nomiku = (function() {
     {
         if(email && password)
         {
-            // We are using the 'request' module to http requests
-            var request = require('request');
+            // We are using the 'needle' module to perform http requests
+            var needle = require('needle');
 
             this.debug("Authenticating against url=" + (_(this).apiURL + 'users/auth'), "with username =", email, "& password =", password);
 
@@ -185,18 +185,26 @@ var Nomiku = (function() {
             var self = this;
 
             // Set a HTTP POST request to the auth endpoint with the required login information. If we login correctly grab the returned userID and apiToken and set them; call the callback with `false` to indicate that no error has occured. If not, call the callback with the error
-            request.post(_(this).apiURL + 'users/auth', {form:{email: email, password: password}}, function (error, response, body) {
-                // console.log("Auth success", error, response.statusCode);
-                if (!error && response.statusCode == 201) {
-                    body = JSON.parse(body);
-                    //this.setUserID();
-                    self.setUserID(body.user_id);
-                    self.setToken(body.api_token);
-                    cb(false);
+            needle.post(_(this).apiURL + 'users/auth', {email: email, password: password}, function (error, response) {
+            // console.log("Auth success", error, response.statusCode);
+                if(error)
+                {
+                    cb({error: true, message: error});
                 }
                 else
                 {
-                    cb(error);
+                    if(response.statusCode == 201) {
+                        var body = response.body;
+
+                        //this.setUserID();
+                        self.setUserID(body.user_id);
+                        self.setToken(body.api_token);
+                        cb(false);
+                    }
+                    else
+                    {
+                        cb({error: "bad response code", message: response.statusCode});
+                    }
                 }
             });
         }
@@ -218,11 +226,10 @@ var Nomiku = (function() {
     {
         if(!_(this).apiToken || !_(this).apiUserID)
             return cb("You must authenticate first!",null);
-        // We are using the 'request' module to http requests
-        var request = require('request');
+        // We are using the 'needle' module to perform http requests
+        var needle = require('needle');
 
         var options = {
-            url: _(this).apiURL + 'devices',
             headers: {
             'X-Api-Token': _(this).apiToken
             }
@@ -230,18 +237,23 @@ var Nomiku = (function() {
 
         this.debug("Getting device list");
 
-        // Set a HTTP POST request to the auth endpoint with the required login information. If we login correctly grab the returned userID and apiToken and set them; call the callback with `false` to indicate that no error has occured. If not, call the callback with the error
-        request.get(options, function (error, response, body) {
+        // Perform a HTTP GET to grab all the devices tied to the user with the access token we have
+        needle.get(_(this).apiURL + 'devices', options, function (error, response, body) {
             // console.log("Auth success", error, response.statusCode);
-            if (!error && response.statusCode == 200) {
-                body = JSON.parse(body);
-                // this.debug("Found the following devices:", body.devices);
-                cb(false, body.devices);
+            if(error)
+            {
+                cb({error: true, message: error});
             }
             else
             {
-                this.debug("Unable to pull the device list. Error =", error);
-                cb(error, null);
+                if(response.statusCode == 200) {
+                    var body = response.body;
+                    cb(false, body.devices);
+                }
+                else
+                {
+                    cb({error: "bad response code", message: response.statusCode});
+                }
             }
         });
 

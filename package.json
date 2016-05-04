@@ -5,8 +5,8 @@
   "main": "nomiku.js",
   "dependencies": {
     "mqtt": "^1.7.0",
-    "private-parts": "^0.4.1",
-    "request": "^2.69.0"
+    "needle": "^1.0.0",
+    "private-parts": "^0.4.1"
   },
   "devDependencies": {},
   "scripts": {
