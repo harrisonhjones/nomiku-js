@@ -57,6 +57,7 @@ var Nomiku = (function() {
     Nomiku.prototype.STATE_ON = '1';
     Nomiku.prototype.STATE_OFF = '0';
     Nomiku.prototype.STATE_OFFLINE = '-1';
+    Nomiku.prototype.states = {"-1": "OFFLINE", "0": "OFF", "1": "ON"};
 
     /**
      * @function setDebug
