@@ -60,10 +60,10 @@ var Nomiku = (function() {
     Nomiku.prototype.states = {"-1": "OFFLINE", "0": "OFF", "1": "ON"};
 
     /**
-     * @function setDebug
+     * @function debug
      * @memberof Nomiku.prototype
-     * @description Manually sets if debugging is on or off
-     * @param {Boolean} arg - The future state of the debugger's on state
+     * @description Outputs a debugging message (if debugging is enabled)
+     * @param {String|Object|Array} arguments - The different arguments to output
      */
     Nomiku.prototype.debug = function() {
         if (_(this).debug)
@@ -77,7 +77,7 @@ var Nomiku = (function() {
     }
 
     /**
-     * @function debug
+     * @function setDebug
      * @memberof Nomiku.prototype
      * @description Manually sets if debugging is on or off
      * @param {Boolean} arg - The future state of the debugger's on state
