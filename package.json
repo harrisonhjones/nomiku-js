@@ -1,6 +1,6 @@
 {
   "name": "nomiku-js",
-  "version": "2.0.3",
+  "version": "3.0.0",
   "description": "A NodeJS module for interacting the a WiFi Nomiku and the Nomiku Tender service",
   "main": "nomiku.js",
   "dependencies": {

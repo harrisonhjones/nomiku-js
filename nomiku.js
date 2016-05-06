@@ -35,12 +35,12 @@
  * @property {String} STATE_ON - The value to indicate that a unit is "ON"
  * @property {String} STATE_OFF - The value to indicate that a unit is "OFF"
  * @property {String} STATE_OFFLINE - The value to indicate that a unit is "OFFLINE"
+ * @property {Array} states - All available device states exposed for easy translation of state value to human-readable state
  */ 
 var Nomiku = (function() {
 
     var _ = require('private-parts').createKey();
 
-    
     function Nomiku(token) {
         if(token)
             _(this).apiToken = token;
@@ -57,7 +57,8 @@ var Nomiku = (function() {
     Nomiku.prototype.STATE_ON = '1';
     Nomiku.prototype.STATE_OFF = '0';
     Nomiku.prototype.STATE_OFFLINE = '-1';
-    Nomiku.prototype.states = {"-1": "OFFLINE", "0": "OFF", "1": "ON"};
+    Nomiku.prototype.STATE_BOOTING_UP = '2';
+    Nomiku.prototype.states = {"-1": "OFFLINE", "0": "OFF", "1": "ON", "2": "BOOTING UP"};
 
     /**
      * @function debug
@@ -83,7 +84,8 @@ var Nomiku = (function() {
      * @param {Boolean} arg - The future state of the debugger's on state
      */
     Nomiku.prototype.setDebug = function(arg) {
-        if(typeof arg === 'boolean') {
+        if(typeof arg === 'boolean') 
+        {
             _(this).debug = arg;
             this.debug("debugging " + (arg ? 'enabled' : 'disabled'));
         }
@@ -162,8 +164,6 @@ var Nomiku = (function() {
         return _(this).apiToken;
     }
 
-
-
     /**
      * @function auth
      * @memberof Nomiku.prototype
@@ -186,10 +186,9 @@ var Nomiku = (function() {
 
             // Set a HTTP POST request to the auth endpoint with the required login information. If we login correctly grab the returned userID and apiToken and set them; call the callback with `false` to indicate that no error has occured. If not, call the callback with the error
             needle.post(_(this).apiURL + 'users/auth', {email: email, password: password}, function (error, response) {
-            // console.log("Auth success", error, response.statusCode);
                 if(error)
                 {
-                    cb({error: true, message: error});
+                    cb({error: 'BAD_HTTP_REQUEST', message: error});
                 }
                 else
                 {
@@ -203,14 +202,14 @@ var Nomiku = (function() {
                     }
                     else
                     {
-                        cb({error: "bad response code", message: response.statusCode});
+                        cb({error: "BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
                     }
                 }
             });
         }
         else
         {
-            cb("You failed to provide either an email or password to authenticate against. Email =", email, "& password =", password);
+            cb({error: "BAD_FUNCTION_PARAMETERS", message: ("You failed to provide either an email or password to authenticate against. Email =", email, "& password =", password)});
         }
     }
 
@@ -218,114 +217,244 @@ var Nomiku = (function() {
      * @function getDevices
      * @memberof Nomiku.prototype
      * @description Authenticates and grabs an access token
-     * @param {String} email - email to login to the Nomiku API with
-     * @param {String} password - password for the login
-     * @param {authenticateCallback} cb - The callback that handles the response.
+     * @param {devicesCallback} cb - The callback that handles the response.
      */
     Nomiku.prototype.getDevices = function(cb)
     {
         if(!_(this).apiToken || !_(this).apiUserID)
-            return cb("You must authenticate first!",null);
-        // We are using the 'needle' module to perform http requests
+        {
+            cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
+        }
+        else
+        {
+            // We are using the 'needle' module to perform http requests
+            var needle = require('needle');
+
+            var options = {
+                headers: {
+                    'X-Api-Token': _(this).apiToken
+                }
+            };
+
+            this.debug("Getting device list");
+
+            // Perform a HTTP GET to grab all the devices tied to the user with the access token we have
+            needle.get(_(this).apiURL + 'devices', options, function (error, response) {
+                if(error)
+                {
+                    cb({error: "BAD_HTTP_REQUEST", message: error});
+                }
+                else
+                {
+                    if(response.statusCode == 200) {
+                        var body = response.body;
+                        cb(false, body.devices);
+                    }
+                    else
+                    {
+                        cb({error:"BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * @function getDeviceSession
+     * @memberof Nomiku.prototype
+     * @description Grabs the current session info for a device
+     * @param {String|Number} deviceID - the device ID of the device (get it using a device list)
+     * @param {deviceSession} cb - The callback that handles the response.
+     */
+    Nomiku.prototype.getDeviceSession = function(deviceID, cb)
+    {
+        var self = this;
+        self.debug("Getting device '", deviceID, "' session");
+
+        if(!deviceID)
+            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceID specified!"}, null);
+
+        var options = {
+            headers: {
+                'X-Api-Token': _(this).apiToken
+            }
+        };
+        var needle = require('needle');
+        needle.get(_(this).apiURL + 'devices/' + deviceID + '/session', options, function (error, response) {
+            if(error)
+            {
+                cb({error: "BAD_HTTP_REQUEST", message: error});
+            }
+            else
+            {
+                if(response.statusCode == 200) 
+                {
+                    cb(false, response.body);
+                }
+                else
+                {
+                    cb({error: "BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
+                }
+            }
+        });
+    }
+
+    /**
+     * @function getDeviceState
+     * @memberof Nomiku.prototype
+     * @description Grabs the state of a device
+     * @param {String|Number} deviceID - the device ID of the device (get it using a device list)
+     * @param {deviceCallback} cb - The callback that handles the response.
+     */
+    Nomiku.prototype.getDeviceState = function(deviceID, cb)
+    {
+        var self = this;
+        self.debug("Getting device '", deviceID, "' state");
+        
+        if(!deviceID)
+            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceID specified!"}, null);
+
+        // Step 1 - Get device session info
+        // Returns: 
+        //  {
+        //      "session_token": "{SESSION_TOKEN}",
+        //      "session_base_url": "{SESSION_BASE_URL}",
+        //      "session_path": "{SESSION_PATH}"
+        //  }
+        self.getDeviceSession(deviceID, function(error, session_info) {
+            if(error)
+            {
+                cb(error, null);
+            }
+            else
+            {
+                var options = {
+                    headers: {
+                        'X-Api-Token': _(self).apiToken
+                    }
+                };
+                var needle = require('needle');
+                // Step 2 - GET {SESSION_BASE_URL} + {SESSION_PATH} + "?auth=" + {SESSION_TOKEN}
+                self.debug("Getting device state info");
+                needle.get(session_info.session_base_url + session_info.session_path + '?auth=' + session_info.session_token, options, function (error, response) {
+                    if(error)
+                    {
+                        cb({error: true, message: error});
+                    }
+                    else
+                    {
+                        if(response.statusCode == 200) 
+                        {
+                            // Returns 
+                            //  {
+                            //      recipeID: {RECIPE_ID},
+                            //      setpoint: {SETPOINT},
+                            //      showF: {SHOW_F},
+                            //      state: {STATE},
+                            //      temp: {TEMP},
+                            //      timerRunning: {TIMER_RUNNING},
+                            //      timerSecs: {TIMER_SECS}
+                            //  }
+                            cb(false, response.body);
+                        }
+                        else
+                        {
+                            cb({error: "BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
+                        }
+                        
+                    }
+                });
+            }
+        });
+    }
+
+
+    /**
+     * @function setDeviceState
+     * @memberof Nomiku.prototype
+     * @description Sets the state of a device
+     * @param {String|Number} deviceID - the device ID of the device (get it using a device list)
+     * @param {Object} deviceState - The new device state. 
+     * @param {deviceCallback} cb - The callback that handles the response.
+     */
+    Nomiku.prototype.setDeviceState = function(deviceID, deviceState, cb)
+    {
+        var self = this;
+        self.debug("Set device '", deviceID, "' state to ", deviceState);
+    
+        if(!deviceID)
+        {
+            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceID specified!"}, null);
+            return;
+        }
+
+        if(!deviceState)
+        {    
+            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceState specified!"}, null);
+            return;
+        }
+
         var needle = require('needle');
 
         var options = {
             headers: {
-            'X-Api-Token': _(this).apiToken
+                'X-Api-Token': _(self).apiToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
         };
 
-        this.debug("Getting device list");
-
-        // Perform a HTTP GET to grab all the devices tied to the user with the access token we have
-        needle.get(_(this).apiURL + 'devices', options, function (error, response, body) {
-            // console.log("Auth success", error, response.statusCode);
+        var data = JSON.stringify({state: deviceState});
+        needle.post(_(this).apiURL + 'devices/' + deviceID + '/set', data, options, function (error, response) {
             if(error)
             {
                 cb({error: true, message: error});
             }
             else
             {
-                if(response.statusCode == 200) {
-                    var body = response.body;
-                    cb(false, body.devices);
+                if(response.statusCode == 201) 
+                {
+                    cb(false, response.body);
                 }
                 else
                 {
-                    cb({error: "bad response code", message: response.statusCode});
+                    cb({error: "BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
                 }
+                
             }
         });
-
     }
 
     /**
-     * @function get
-     * @memberof Nomiku.prototype
-     * @description Grabs an arbitrary variable value
-     * @param {String} variableName - the variable name to grab
-     * @param {getSetCallback} cb - The callback that handles the response.
-     */
-    Nomiku.prototype.get = function(variableName, cb)
-    {
-        this.debug("Getting", variableName, 'from', _(this).deviceID, 'using token', _(this).apiToken);
-
-        if(!variableName)
-            return cb("You must provide a variable name",null);
-
-        // If the `variableName` variable name isn't a string convert it to one (required by the API)
-        if (!(typeof variableName === 'string') || !(variableName instanceof String))
-            variableName = variableName.toString();
-
-        // If we haven't set the apiToken, userID, or deviceID return with an error because we need those 3 things to successfully execute the command
-        if(!_(this).apiToken || !_(this).apiUserID)
-            return cb("You must authenticate first!",null);
-        
-        if(!_(this).deviceID)
-            return cb("You must set a device ID!",null);
-
-        // We are using the mqtt library to talk to the API. Connect to the API with the apiUserID and API Token
-        var mqtt    = require('mqtt'),
-            client  = mqtt.connect('https://mq.nomiku.com/mqtt',{username: 'user/'+_(this).apiUserID, password: _(this).apiToken});
-        
-        // When we connect subscribe to the desired variable
-        var self = this;
-
-        client.on('connect', function () {
-            self.debug("Subscribing to ", 'nom2/' + _(self).deviceID + '/get/' + variableName)
-            client.subscribe('nom2/' + _(self).deviceID + '/get/' + variableName);
-        });
-        
-        // Once we get the desired variable value kill the conneciton and call the callback with the variable value
-        client.on('message', function (topic, message) {
-          client.end();
-          cb(false, message.toString());
-        });
-
-        client.on('error', function (error) {
-            self.debug("An MQTT error occured.",error);
-            cb(error.toString(),null);
-            client.end();
-        });
-    }
-
-    /**
-     * @function set
+     * @function setMQTT
      * @memberof Nomiku.prototype
      * @description Sets an arbitrary variable value
+     * @param {String} hardwareID - The hardware ID of the device to update
      * @param {String} variableName - the variable name to set
      * @param {String} value - the value to set the variable to
      * @param {getSetCallback} cb - The callback that handles the response.
      */
-    Nomiku.prototype.set = function(variableName, value, cb)
+    Nomiku.prototype.setMQTT = function(hardwareID, variableName, value, cb)
     {
-        this.debug("Setting", variableName, 'to', value, 'on', _(this).deviceID, 'using token', _(this).apiToken);
+        this.debug("Setting", variableName, 'to', value, 'on', hardwareID, 'using token', _(this).apiToken);
+
+        if(!hardwareID)
+        {
+            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No hardwareID specified!"}, null);
+            return;
+        }
 
         if(!variableName)
-            return cb("You must provide a variable name. You provided ", variableName,null);
-        
+        {
+            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No variableName specified!"}, null);
+            return;
+        }
+
         if(!value)
-            return cb("You must provide a variable value. You provided ", value,null);
+        {
+            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No value specified!"}, null);
+            return;
+        }
         
         // If the `variableName` variable name isn't a string convert it to one (required by the API)
         if (!(typeof variableName === 'string') || !(variableName instanceof String))
@@ -337,10 +466,10 @@ var Nomiku = (function() {
 
         // If we haven't set the apiToken, userID, or deviceID return with an error because we need those 3 things to successfully execute the command
         if(!_(this).apiToken || !_(this).apiUserID)
-            return cb("You must authenticate first!",null);
-
-        if(!_(this).deviceID)
-            return cb("You must set a device ID!",null);
+        {
+            cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
+            return;
+        }
 
         // We are using the mqtt library to talk to the API. Connect to the API with the apiUserID and API Token
         var mqtt    = require('mqtt'),
@@ -350,8 +479,8 @@ var Nomiku = (function() {
         var self = this;
 
         client.on('connect', function () {
-            client.publish('nom2/' + _(self).deviceID + '/set/' + variableName, value);
-            client.subscribe('nom2/' + _(self).deviceID + '/get/' + variableName);
+            client.publish('nom2/' + hardwareID + '/set/' + variableName, value);
+            client.subscribe('nom2/' + hardwareID + '/get/' + variableName);
         });
         
         // Once we get the desired variable value kill the conneciton and call the callback with the variable value. Again; this is almost always the old value
@@ -365,83 +494,6 @@ var Nomiku = (function() {
             cb(error.toString(),null);
             client.end();
         });
-    }
-
-    /**
-     * @function getState
-     * @memberof Nomiku.prototype
-     * @description Grabs the most recent state (0 = off, 1 = on, -1 = offline)
-     * @param {getSetCallback} cb - The callback that handles the response.
-     */
-    Nomiku.prototype.getState = function(cb)
-    {
-        this.get('state', cb);
-    }
-
-    /**
-     * @function getTemp
-     * @memberof Nomiku.prototype
-     * @description Grabs the most recent temperature in Celcius
-     * @param {getSetCallback} cb - The callback that handles the response.
-     */
-    Nomiku.prototype.getTemp = function(cb)
-    {
-        this.get('temp', cb);
-    }
-
-    /**
-     * @function getSetPoint
-     * @memberof Nomiku.prototype
-     * @description Grabs the most recent set point temperature in Celcius
-     * @param {getSetCallback} cb - The callback that handles the response.
-     */
-    Nomiku.prototype.getSetPoint = function(cb)
-    {
-        this.get('setpoint', cb);
-    }
-
-    /**
-     * @function getReceipeID
-     * @memberof Nomiku.prototype
-     * @description Grabs the most recent recipe ID
-     * @param {getSetCallback} cb - The callback that handles the response.
-     */
-    Nomiku.prototype.getReceipeID = function(cb)
-    {
-        this.get('recipeID', cb);
-    }
-
-    /**
-     * @function getVersion
-     * @memberof Nomiku.prototype
-     * @description Grabs the most recent version
-     * @param {getSetCallback} cb - The callback that handles the response.
-     */
-    Nomiku.prototype.getVersion = function(cb)
-    {
-        this.get('version', cb);
-    }
-
-    /**
-     * @function setState
-     * @memberof Nomiku.prototype
-     * @description Sets the current state of the device
-     * @param {getSetCallback} cb - The callback that handles the response.
-     */
-    Nomiku.prototype.setState = function(value, cb)
-    {
-        this.set('state', value, cb);
-    }
-
-    /**
-     * @function setSetPoint
-     * @memberof Nomiku.prototype
-     * @description Sets the current temperature set point in Celcius of the device
-     * @param {getSetCallback} cb - The callback that handles the response.
-     */
-    Nomiku.prototype.setSetPoint = function(value, cb)
-    {
-        this.set('setpoint', value, cb);
     }
 
     /**
@@ -485,5 +537,26 @@ module.exports = new Nomiku;
  * @memberof Nomiku.prototype
  * @param {Boolean|object} error - False if no error occured; an error obejct if an error did occur
  * @param {String} value - the value returned from the get request if an error did not occur
+ */
+
+ /**
+ * @callback deviceCallback
+ * @memberof Nomiku.prototype
+ * @param {Boolean|object} error - False if no error occured; an error obejct if an error did occur
+ * @param {String} device - A device object containing the device's state
+ */
+
+ /**
+ * @callback devicesCallback
+ * @memberof Nomiku.prototype
+ * @param {Boolean|object} error - False if no error occured; an error obejct if an error did occur
+ * @param {Array} devices - An array of devices containing basic device info (no state information)
+ */
+
+ /**
+ * @callback deviceSession
+ * @memberof Nomiku.prototype
+ * @param {Boolean|object} error - False if no error occured; an error obejct if an error did occur
+ * @param {Object} deviceSessionInfo - The device session information
  */
 
