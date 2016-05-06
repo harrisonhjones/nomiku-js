@@ -194,8 +194,6 @@ var Nomiku = (function() {
                 {
                     if(response.statusCode == 201) {
                         var body = response.body;
-
-                        //this.setUserID();
                         self.setUserID(body.user_id);
                         self.setToken(body.api_token);
                         cb(false);
@@ -213,6 +211,75 @@ var Nomiku = (function() {
         }
     }
 
+
+    Nomiku.prototype.getUser = function(userID, type, cb)
+    {
+        type = type || 'basic';
+
+        this.debug("Getting " + type + " user info for user " + userID);
+
+        if(!userID)
+        {
+            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No userID specified!"}, null);
+            return;
+        }
+        else
+        {
+            if (userID == 'me')
+            {
+                if(!_(this).apiUserID)
+                {
+                    cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first! You cannot specify 'me' as your userID if you have not logged in using a username and password first"}, null);
+                    return;
+                }
+                else
+                {
+                    userID = _(this).apiUserID;
+                }
+            }
+            // We are using the 'needle' module to perform http requests
+            var needle = require('needle');
+
+            // This request does not require authentication (though if you provide it the request will return more information)
+            var options = {};
+            if(type == 'full')
+            {
+                if(!_(this).apiToken)
+                {
+                    cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first! You cannot specify 'full' as your type if you have not logged in or provided a apiToken first"}, null);                            
+                    return;
+                }
+                else
+                {
+                    options = {
+                        headers: {
+                            'X-Api-Token': _(this).apiToken
+                        }
+                    };
+                }
+            }
+
+            // Perform a HTTP GET to grab all the devices tied to the user with the access token we have
+            needle.get(_(this).apiURL + 'users/' + userID, options, function (error, response) {
+                if(error)
+                {
+                    cb({error: "BAD_HTTP_REQUEST", message: error});
+                }
+                else
+                {
+                    if(response.statusCode == 200) {
+                        var body = response.body;
+                        cb(false, body.user);
+                    }
+                    else
+                    {
+                        cb({error:"BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
+                    }
+                }
+            });
+        }
+    }
+
     /**
      * @function getDevices
      * @memberof Nomiku.prototype
@@ -221,7 +288,7 @@ var Nomiku = (function() {
      */
     Nomiku.prototype.getDevices = function(cb)
     {
-        if(!_(this).apiToken || !_(this).apiUserID)
+        if(!_(this).apiToken)
         {
             cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
         }
@@ -268,35 +335,45 @@ var Nomiku = (function() {
      */
     Nomiku.prototype.getDeviceSession = function(deviceID, cb)
     {
-        var self = this;
-        self.debug("Getting device '", deviceID, "' session");
+        if(!_(this).apiToken)
+        {
+            cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
+        }
+        else
+        { 
+            var self = this;
+            self.debug("Getting device '", deviceID, "' session");
 
-        if(!deviceID)
-            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceID specified!"}, null);
+            if(!deviceID)
+            {
+                cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceID specified!"}, null);
+                return;
+            }
 
-        var options = {
-            headers: {
-                'X-Api-Token': _(this).apiToken
-            }
-        };
-        var needle = require('needle');
-        needle.get(_(this).apiURL + 'devices/' + deviceID + '/session', options, function (error, response) {
-            if(error)
-            {
-                cb({error: "BAD_HTTP_REQUEST", message: error});
-            }
-            else
-            {
-                if(response.statusCode == 200) 
+            var options = {
+                headers: {
+                    'X-Api-Token': _(this).apiToken
+                }
+            };
+            var needle = require('needle');
+            needle.get(_(this).apiURL + 'devices/' + deviceID + '/session', options, function (error, response) {
+                if(error)
                 {
-                    cb(false, response.body);
+                    cb({error: "BAD_HTTP_REQUEST", message: error});
                 }
                 else
                 {
-                    cb({error: "BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
+                    if(response.statusCode == 200) 
+                    {
+                        cb(false, response.body);
+                    }
+                    else
+                    {
+                        cb({error: "BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     /**
@@ -308,64 +385,77 @@ var Nomiku = (function() {
      */
     Nomiku.prototype.getDeviceState = function(deviceID, cb)
     {
-        var self = this;
-        self.debug("Getting device '", deviceID, "' state");
-        
-        if(!deviceID)
-            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceID specified!"}, null);
-
-        // Step 1 - Get device session info
-        // Returns: 
-        //  {
-        //      "session_token": "{SESSION_TOKEN}",
-        //      "session_base_url": "{SESSION_BASE_URL}",
-        //      "session_path": "{SESSION_PATH}"
-        //  }
-        self.getDeviceSession(deviceID, function(error, session_info) {
-            if(error)
+        if(!_(this).apiToken)
+        {
+            cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
+        }
+        else
+        { 
+            var self = this;
+            self.debug("Getting device '", deviceID, "' state");
+            
+            if(!deviceID)
             {
-                cb(error, null);
+                cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceID specified!"}, null);
+                return;
             }
             else
-            {
-                var options = {
-                    headers: {
-                        'X-Api-Token': _(self).apiToken
-                    }
-                };
-                var needle = require('needle');
-                // Step 2 - GET {SESSION_BASE_URL} + {SESSION_PATH} + "?auth=" + {SESSION_TOKEN}
-                self.debug("Getting device state info");
-                needle.get(session_info.session_base_url + session_info.session_path + '?auth=' + session_info.session_token, options, function (error, response) {
+                {
+
+                // Step 1 - Get device session info
+                // Returns: 
+                //  {
+                //      "session_token": "{SESSION_TOKEN}",
+                //      "session_base_url": "{SESSION_BASE_URL}",
+                //      "session_path": "{SESSION_PATH}"
+                //  }
+                self.getDeviceSession(deviceID, function(error, session_info) {
                     if(error)
                     {
-                        cb({error: true, message: error});
+                        cb(error, null);
                     }
                     else
                     {
-                        if(response.statusCode == 200) 
-                        {
-                            // Returns 
-                            //  {
-                            //      recipeID: {RECIPE_ID},
-                            //      setpoint: {SETPOINT},
-                            //      showF: {SHOW_F},
-                            //      state: {STATE},
-                            //      temp: {TEMP},
-                            //      timerRunning: {TIMER_RUNNING},
-                            //      timerSecs: {TIMER_SECS}
-                            //  }
-                            cb(false, response.body);
-                        }
-                        else
-                        {
-                            cb({error: "BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
-                        }
-                        
+                        var options = {
+                            headers: {
+                                'X-Api-Token': _(self).apiToken
+                            }
+                        };
+                        var needle = require('needle');
+                        // Step 2 - GET {SESSION_BASE_URL} + {SESSION_PATH} + "?auth=" + {SESSION_TOKEN}
+                        self.debug("Getting device state info");
+                        needle.get(session_info.session_base_url + session_info.session_path + '?auth=' + session_info.session_token, options, function (error, response) {
+                            if(error)
+                            {
+                                cb({error: true, message: error});
+                            }
+                            else
+                            {
+                                if(response.statusCode == 200) 
+                                {
+                                    // Returns 
+                                    //  {
+                                    //      recipeID: {RECIPE_ID},
+                                    //      setpoint: {SETPOINT},
+                                    //      showF: {SHOW_F},
+                                    //      state: {STATE},
+                                    //      temp: {TEMP},
+                                    //      timerRunning: {TIMER_RUNNING},
+                                    //      timerSecs: {TIMER_SECS}
+                                    //  }
+                                    cb(false, response.body);
+                                }
+                                else
+                                {
+                                    cb({error: "BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
+                                }
+                                
+                            }
+                        });
                     }
                 });
             }
-        });
+        }
     }
 
 
@@ -379,50 +469,57 @@ var Nomiku = (function() {
      */
     Nomiku.prototype.setDeviceState = function(deviceID, deviceState, cb)
     {
-        var self = this;
-        self.debug("Set device '", deviceID, "' state to ", deviceState);
-    
-        if(!deviceID)
+        if(!_(this).apiToken)
         {
-            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceID specified!"}, null);
-            return;
+            cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
         }
-
-        if(!deviceState)
-        {    
-            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceState specified!"}, null);
-            return;
-        }
-
-        var needle = require('needle');
-
-        var options = {
-            headers: {
-                'X-Api-Token': _(self).apiToken,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        };
-
-        var data = JSON.stringify({state: deviceState});
-        needle.post(_(this).apiURL + 'devices/' + deviceID + '/set', data, options, function (error, response) {
-            if(error)
+        else
+        { 
+            var self = this;
+            self.debug("Set device '", deviceID, "' state to ", deviceState);
+        
+            if(!deviceID)
             {
-                cb({error: true, message: error});
+                cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceID specified!"}, null);
+                return;
             }
-            else
-            {
-                if(response.statusCode == 201) 
+
+            if(!deviceState)
+            {    
+                cb({error: "BAD_FUNCTION_PARAMETERS", message: "No deviceState specified!"}, null);
+                return;
+            }
+
+            var needle = require('needle');
+
+            var options = {
+                headers: {
+                    'X-Api-Token': _(self).apiToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            var data = JSON.stringify({state: deviceState});
+            needle.post(_(this).apiURL + 'devices/' + deviceID + '/set', data, options, function (error, response) {
+                if(error)
                 {
-                    cb(false, response.body);
+                    cb({error: true, message: error});
                 }
                 else
                 {
-                    cb({error: "BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
+                    if(response.statusCode == 201) 
+                    {
+                        cb(false, response.body);
+                    }
+                    else
+                    {
+                        cb({error: "BAD_HTTP_RESPONSE_CODE", message: response.statusCode});
+                    }
+                    
                 }
-                
-            }
-        });
+            });
+        }
     }
 
     /**
@@ -436,64 +533,64 @@ var Nomiku = (function() {
      */
     Nomiku.prototype.setMQTT = function(hardwareID, variableName, value, cb)
     {
-        this.debug("Setting", variableName, 'to', value, 'on', hardwareID, 'using token', _(this).apiToken);
-
-        if(!hardwareID)
-        {
-            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No hardwareID specified!"}, null);
-            return;
-        }
-
-        if(!variableName)
-        {
-            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No variableName specified!"}, null);
-            return;
-        }
-
-        if(!value)
-        {
-            cb({error: "BAD_FUNCTION_PARAMETERS", message: "No value specified!"}, null);
-            return;
-        }
-        
-        // If the `variableName` variable name isn't a string convert it to one (required by the API)
-        if (!(typeof variableName === 'string') || !(variableName instanceof String))
-            variableName = variableName.toString();
-        
-        // If the `value` variable name isn't a string convert it to one (required by the API)
-        if (!(typeof value === 'string') || !(value instanceof String))
-            value = value.toString();
-
-        // If we haven't set the apiToken, userID, or deviceID return with an error because we need those 3 things to successfully execute the command
         if(!_(this).apiToken || !_(this).apiUserID)
         {
             cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
-            return;
         }
+        else
+        { 
+            this.debug("Setting", variableName, 'to', value, 'on', hardwareID, 'using token', _(this).apiToken);
 
-        // We are using the mqtt library to talk to the API. Connect to the API with the apiUserID and API Token
-        var mqtt    = require('mqtt'),
-            client  = mqtt.connect('https://mq.nomiku.com/mqtt',{username: 'user/'+_(this).apiUserID, password: _(this).apiToken});
+            if(!hardwareID)
+            {
+                cb({error: "BAD_FUNCTION_PARAMETERS", message: "No hardwareID specified!"}, null);
+                return;
+            }
 
-        // When we connect publish the desired variable value and subscribe to the value (not really useful since it returns an old value)
-        var self = this;
+            if(!variableName)
+            {
+                cb({error: "BAD_FUNCTION_PARAMETERS", message: "No variableName specified!"}, null);
+                return;
+            }
 
-        client.on('connect', function () {
-            client.publish('nom2/' + hardwareID + '/set/' + variableName, value);
-            client.subscribe('nom2/' + hardwareID + '/get/' + variableName);
-        });
-        
-        // Once we get the desired variable value kill the conneciton and call the callback with the variable value. Again; this is almost always the old value
-        client.on('message', function (topic, message) {
-            client.end();
-            cb(false, message.toString());
-        });
+            if(!value)
+            {
+                cb({error: "BAD_FUNCTION_PARAMETERS", message: "No value specified!"}, null);
+                return;
+            }
+            
+            // If the `variableName` variable name isn't a string convert it to one (required by the API)
+            if (!(typeof variableName === 'string') || !(variableName instanceof String))
+                variableName = variableName.toString();
+            
+            // If the `value` variable name isn't a string convert it to one (required by the API)
+            if (!(typeof value === 'string') || !(value instanceof String))
+                value = value.toString();
 
-        client.on('error', function (error) {
-            self.debug("An MQTT error occured.",error);
-            cb(error.toString(),null);
-            client.end();
-        });
+            // We are using the mqtt library to talk to the API. Connect to the API with the apiUserID and API Token
+            var mqtt    = require('mqtt'),
+                client  = mqtt.connect('https://mq.nomiku.com/mqtt',{username: 'user/'+_(this).apiUserID, password: _(this).apiToken});
+
+            // When we connect publish the desired variable value and subscribe to the value (not really useful since it returns an old value)
+            var self = this;
+
+            client.on('connect', function () {
+                client.publish('nom2/' + hardwareID + '/set/' + variableName, value);
+                client.subscribe('nom2/' + hardwareID + '/get/' + variableName);
+            });
+            
+            // Once we get the desired variable value kill the conneciton and call the callback with the variable value. Again; this is almost always the old value
+            client.on('message', function (topic, message) {
+                client.end();
+                cb(false, message.toString());
+            });
+
+            client.on('error', function (error) {
+                self.debug("An MQTT error occured.",error);
+                cb(error.toString(),null);
+                client.end();
+            });
+        }
     }
 
     /**
