@@ -37,28 +37,20 @@
  * @property {String} STATE_OFFLINE - The value to indicate that a unit is "OFFLINE"
  * @property {Array} states - All available device states exposed for easy translation of state value to human-readable state
  */ 
-var Nomiku = (function() {
+var Nomiku = function() 
+{
 
-    var _ = require('private-parts').createKey();
+    this._apiUserID = 0;
+    this._apiURL = 'https://www.eattender.com/api/'
+    this._deviceID = '';
+    this._mqttURL = '';
+    this._debug = false; 
 
-    function Nomiku(token) {
-        if(token)
-            _(this).apiToken = token;
-        else
-            _(this).apiToken = null;
-
-        _(this).apiUserID = 0;
-        _(this).apiURL = 'https://www.eattender.com/api/'
-        _(this).deviceID = '';
-        _(this).mqttURL = '';
-        _(this).debug = false; 
-    }
-
-    Nomiku.prototype.STATE_ON = '1';
-    Nomiku.prototype.STATE_OFF = '0';
-    Nomiku.prototype.STATE_OFFLINE = '-1';
-    Nomiku.prototype.STATE_BOOTING_UP = '2';
-    Nomiku.prototype.states = {"-1": "OFFLINE", "0": "OFF", "1": "ON", "2": "BOOTING UP"};
+    this.STATE_ON = '1';
+    this.STATE_OFF = '0';
+    this.STATE_OFFLINE = '-1';
+    this.STATE_BOOTING_UP = '2';
+    this.states = {"-1": "OFFLINE", "0": "OFF", "1": "ON", "2": "BOOTING UP"};
 
     /**
      * @function debug
@@ -66,8 +58,8 @@ var Nomiku = (function() {
      * @description Outputs a debugging message (if debugging is enabled)
      * @param {String|Object|Array} arguments - The different arguments to output
      */
-    Nomiku.prototype.debug = function() {
-        if (_(this).debug)
+    this.debug = function() {
+        if (this._debug)
         {
             args = ["[nomiku-js]"];
             for (var i = 0; i < arguments.length; i++) {
@@ -83,10 +75,10 @@ var Nomiku = (function() {
      * @description Manually sets if debugging is on or off
      * @param {Boolean} arg - The future state of the debugger's on state
      */
-    Nomiku.prototype.setDebug = function(arg) {
+    this.setDebug = function(arg) {
         if(typeof arg === 'boolean') 
         {
-            _(this).debug = arg;
+            this._debug = arg;
             this.debug("debugging " + (arg ? 'enabled' : 'disabled'));
         }
     }
@@ -98,11 +90,11 @@ var Nomiku = (function() {
      * @param {String} apiToken - the API token to use
      * @returns {Boolean} true if a token is provided. False otherwise
      */
-    Nomiku.prototype.setToken = function(token)
+    this.setToken = function(token)
     {
         if(token)
         {
-            _(this).apiToken = token;
+            this._apiToken = token;
             return true;
         }
         else
@@ -118,11 +110,11 @@ var Nomiku = (function() {
      * @param {String} id - the user ID to use
      * @returns {Boolean} true if a id is provided. False otherwise
      */
-    Nomiku.prototype.setUserID = function(id)
+    this.setUserID = function(id)
     {
         if(id)
         {
-            _(this).apiUserID = id;
+            this._apiUserID = id;
             return true;
         }
         else
@@ -138,13 +130,13 @@ var Nomiku = (function() {
      * @param {String} id - the device ID to use
      * @returns {Boolean} true if a id is provided. False otherwise
      */
-    Nomiku.prototype.setDeviceID = function(id)
+    this.setDeviceID = function(id)
     {
         this.debug("Device ID set to", id);
 
         if(id)
         {
-            _(this).deviceID = id;
+            this._deviceID = id;
             return true;
         }
         else
@@ -159,9 +151,9 @@ var Nomiku = (function() {
      * @description Returns the current apiToken
      * @returns {String} The current apiToken / access token
      */
-    Nomiku.prototype.getToken = function()
+    this.getToken = function()
     {
-        return _(this).apiToken;
+        return this._apiToken;
     }
 
     /**
@@ -172,20 +164,20 @@ var Nomiku = (function() {
      * @param {String} password - password for the login
      * @param {authenticateCallback} cb - The callback that handles the response.
      */
-    Nomiku.prototype.auth = function(email, password, cb)
+    this.auth = function(email, password, cb)
     {
         if(email && password)
         {
             // We are using the 'needle' module to perform http requests
             var needle = require('needle');
 
-            this.debug("Authenticating against url=" + (_(this).apiURL + 'users/auth'), "with username =", email, "& password =", password);
+            this.debug("Authenticating against url=" + (this._apiURL + 'users/auth'), "with username =", email, "& password =", password);
 
             // See http://www.toptal.com/javascript/10-most-common-javascript-mistakes for why this is done
             var self = this;
 
             // Set a HTTP POST request to the auth endpoint with the required login information. If we login correctly grab the returned userID and apiToken and set them; call the callback with `false` to indicate that no error has occured. If not, call the callback with the error
-            needle.post(_(this).apiURL + 'users/auth', {email: email, password: password}, function (error, response) {
+            needle.post(this._apiURL + 'users/auth', {email: email, password: password}, function (error, response) {
                 if(error)
                 {
                     cb({error: 'BAD_HTTP_REQUEST', message: error});
@@ -212,7 +204,7 @@ var Nomiku = (function() {
     }
 
 
-    Nomiku.prototype.getUser = function(userID, type, cb)
+    this.getUser = function(userID, type, cb)
     {
         type = type || 'basic';
 
@@ -227,14 +219,14 @@ var Nomiku = (function() {
         {
             if (userID == 'me')
             {
-                if(!_(this).apiUserID)
+                if(!this._apiUserID)
                 {
                     cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first! You cannot specify 'me' as your userID if you have not logged in using a username and password first"}, null);
                     return;
                 }
                 else
                 {
-                    userID = _(this).apiUserID;
+                    userID = this._apiUserID;
                 }
             }
             // We are using the 'needle' module to perform http requests
@@ -244,7 +236,7 @@ var Nomiku = (function() {
             var options = {};
             if(type == 'full')
             {
-                if(!_(this).apiToken)
+                if(!this._apiToken)
                 {
                     cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first! You cannot specify 'full' as your type if you have not logged in or provided a apiToken first"}, null);                            
                     return;
@@ -253,14 +245,14 @@ var Nomiku = (function() {
                 {
                     options = {
                         headers: {
-                            'X-Api-Token': _(this).apiToken
+                            'X-Api-Token': this._apiToken
                         }
                     };
                 }
             }
 
             // Perform a HTTP GET to grab all the devices tied to the user with the access token we have
-            needle.get(_(this).apiURL + 'users/' + userID, options, function (error, response) {
+            needle.get(this._apiURL + 'users/' + userID, options, function (error, response) {
                 if(error)
                 {
                     cb({error: "BAD_HTTP_REQUEST", message: error});
@@ -286,9 +278,9 @@ var Nomiku = (function() {
      * @description Authenticates and grabs an access token
      * @param {devicesCallback} cb - The callback that handles the response.
      */
-    Nomiku.prototype.getDevices = function(cb)
+    this.getDevices = function(cb)
     {
-        if(!_(this).apiToken)
+        if(!this._apiToken)
         {
             cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
         }
@@ -299,14 +291,14 @@ var Nomiku = (function() {
 
             var options = {
                 headers: {
-                    'X-Api-Token': _(this).apiToken
+                    'X-Api-Token': this._apiToken
                 }
             };
 
             this.debug("Getting device list");
 
             // Perform a HTTP GET to grab all the devices tied to the user with the access token we have
-            needle.get(_(this).apiURL + 'devices', options, function (error, response) {
+            needle.get(this._apiURL + 'devices', options, function (error, response) {
                 if(error)
                 {
                     cb({error: "BAD_HTTP_REQUEST", message: error});
@@ -333,9 +325,9 @@ var Nomiku = (function() {
      * @param {String|Number} deviceID - the device ID of the device (get it using a device list)
      * @param {deviceSession} cb - The callback that handles the response.
      */
-    Nomiku.prototype.getDeviceSession = function(deviceID, cb)
+    this.getDeviceSession = function(deviceID, cb)
     {
-        if(!_(this).apiToken)
+        if(!this._apiToken)
         {
             cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
         }
@@ -352,11 +344,11 @@ var Nomiku = (function() {
 
             var options = {
                 headers: {
-                    'X-Api-Token': _(this).apiToken
+                    'X-Api-Token': this._apiToken
                 }
             };
             var needle = require('needle');
-            needle.get(_(this).apiURL + 'devices/' + deviceID + '/session', options, function (error, response) {
+            needle.get(this._apiURL + 'devices/' + deviceID + '/session', options, function (error, response) {
                 if(error)
                 {
                     cb({error: "BAD_HTTP_REQUEST", message: error});
@@ -383,9 +375,9 @@ var Nomiku = (function() {
      * @param {String|Number} deviceID - the device ID of the device (get it using a device list)
      * @param {deviceCallback} cb - The callback that handles the response.
      */
-    Nomiku.prototype.getDeviceState = function(deviceID, cb)
+    this.getDeviceState = function(deviceID, cb)
     {
-        if(!_(this).apiToken)
+        if(!this._apiToken)
         {
             cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
         }
@@ -418,7 +410,7 @@ var Nomiku = (function() {
                     {
                         var options = {
                             headers: {
-                                'X-Api-Token': _(self).apiToken
+                                'X-Api-Token': self._apiToken
                             }
                         };
                         var needle = require('needle');
@@ -467,16 +459,16 @@ var Nomiku = (function() {
      * @param {Object} deviceState - The new device state. 
      * @param {deviceCallback} cb - The callback that handles the response.
      */
-    Nomiku.prototype.setDeviceState = function(deviceID, deviceState, cb)
+    this.setDeviceState = function(deviceID, deviceState, cb)
     {
-        if(!_(this).apiToken)
+        if(!this._apiToken)
         {
             cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
         }
         else
         { 
             var self = this;
-            self.debug("Set device '", deviceID, "' state to ", deviceState);
+            self.debug("Set device '", deviceID, "' state to ", JSON.stringify(deviceState));
         
             if(!deviceID)
             {
@@ -494,14 +486,14 @@ var Nomiku = (function() {
 
             var options = {
                 headers: {
-                    'X-Api-Token': _(self).apiToken,
+                    'X-Api-Token': this._apiToken,
                     'Accept': 'application/json',
                     'Content-Type': 'application/json'
                 }
             };
 
             var data = JSON.stringify({state: deviceState});
-            needle.post(_(this).apiURL + 'devices/' + deviceID + '/set', data, options, function (error, response) {
+            needle.post(this._apiURL + 'devices/' + deviceID + '/set', data, options, function (error, response) {
                 if(error)
                 {
                     cb({error: true, message: error});
@@ -531,15 +523,15 @@ var Nomiku = (function() {
      * @param {String} value - the value to set the variable to
      * @param {getSetCallback} cb - The callback that handles the response.
      */
-    Nomiku.prototype.setMQTT = function(hardwareID, variableName, value, cb)
+    this.setMQTT = function(hardwareID, variableName, value, cb)
     {
-        if(!_(this).apiToken || !_(this).apiUserID)
+        if(!this._apiToken || !this._apiUserID)
         {
             cb({error: "FAILURE_TO_AUTHENTICATE", message: "You must authenticate first!"}, null);
         }
         else
         { 
-            this.debug("Setting", variableName, 'to', value, 'on', hardwareID, 'using token', _(this).apiToken);
+            this.debug("Setting", variableName, 'to', value, 'on', hardwareID, 'using token', this._apiToken);
 
             if(!hardwareID)
             {
@@ -569,7 +561,7 @@ var Nomiku = (function() {
 
             // We are using the mqtt library to talk to the API. Connect to the API with the apiUserID and API Token
             var mqtt    = require('mqtt'),
-                client  = mqtt.connect('https://mq.nomiku.com/mqtt',{username: 'user/'+_(this).apiUserID, password: _(this).apiToken});
+                client  = mqtt.connect('https://mq.nomiku.com/mqtt',{username: 'user/'+this._apiUserID, password: this._apiToken});
 
             // When we connect publish the desired variable value and subscribe to the value (not really useful since it returns an old value)
             var self = this;
@@ -600,7 +592,7 @@ var Nomiku = (function() {
      * @param {String} c - The temp value in degrees Celcius
      * @returns {Number} The converted temperature in Farenheight
      */
-    Nomiku.prototype.CtoF = function(c)
+    this.CtoF = function(c)
     {
         return c*1.8+32;
     }
@@ -612,16 +604,14 @@ var Nomiku = (function() {
      * @param {String} f - The temp value in degrees Farenheight
      * @returns {Number} The converted temperature in Celcius
      */
-    Nomiku.prototype.FtoC = function(f)
+    this.FtoC = function(f)
     {
         return (f-32)/1.8;
     }
-
-    return Nomiku;
-}());
+};
 
 /** @module nomiku-js */
-module.exports = new Nomiku;
+module.exports = Nomiku;
 
 /**
  * @callback authenticateCallback
