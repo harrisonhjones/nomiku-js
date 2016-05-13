@@ -5,7 +5,8 @@
 
 // Import the Nomiku library
 // var nom = require('nomiku-js');  // Uncomment if you installed nomiku-js with `npm install nomiku-js`
-var nom = require('../nomiku.js');  // Uncomment if you are running this script from the examples folder
+var Nomiku = require('../nomiku.js');  // Uncomment if you are running this script from the examples folder
+var nom = new Nomiku();
 
 // Turn on debugging to see what is happening in the nomiku-js package
 nom.setDebug(true);
